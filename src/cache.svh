@@ -19,7 +19,7 @@
     } moesi_t;
 
     // Define the L1 cacheline struct with MOESI state, tag, and cacheline data
-    typedef struct {
+    typedef struct packed {
         moesi_t state;                     // MOESI state
         logic [`L1_TAG_BITS-1:0] tag;              // Tag field
         logic [`CACHELINE_BITS-1:0] cacheline;     // Cacheline data
@@ -31,7 +31,7 @@
         L2_D  // Dirty
     } l2_state_t;
 
-    typedef struct {
+    typedef struct packed {
         l2_state_t state;                               // L2 state (Invalid, Clean, Dirty)
         logic [`L2_TAG_BITS-1:0] tag;                   // Tag field
         logic [`CACHELINE_BITS-1:0] cacheline;          // Cacheline data
