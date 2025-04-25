@@ -6,9 +6,9 @@ module bus (
   // L1 controller interface (for `CPU_CORES L1 modules)
   input  logic [`CPU_CORES-1:0]                     l1_req_valid,
   output logic [`CPU_CORES-1:0]                     l1_req_ready,
-  input  logic [`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr [`CPU_CORES-1:0],
+  input  logic [`CPU_CORES*(`ADDR_BITS - `OFFSET_BITS)-1:0] l1_req_addr,
   input  bus_req_t [`CPU_CORES-1:0]                 l1_req,
-  input  logic [`CACHELINE_BITS-1:0] l1_req_data [`CPU_CORES-1:0],
+  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0] l1_req_data,
   output logic                        l1_resp_valid,
   output logic [`CACHELINE_BITS-1:0]  l1_resp_data,
   output logic                        l1_resp_shared,
@@ -88,8 +88,8 @@ module bus (
           if (l1_req_valid[i]) begin
             l1_req_ready[i] = 1'b1;             // Assert ready for the selected CPU
             next_req   = l1_req[i];             // Store the bus request from L1 controller
-            next_addr  = l1_req_addr[i];          // Store the address from L1 controller
-            next_data  = l1_req_data[i];          // Store the data from L1 controller
+            next_addr  = l1_req_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)];          // Store the address from L1 controller
+            next_data  = l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];          // Store the data from L1 controller
             next_cpu   = i;                     // Record the CPU id
             next_state = REQ;                   // Transition to REQ state
             break;                             // Exit the loop after handling one request
