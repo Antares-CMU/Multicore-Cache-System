@@ -82,7 +82,7 @@ module bus (
 
     // FSM state case analysis
     case(cur_state)
-      IDLE: begin
+      IDLE: begin : scan_reqs
         // Loop over all CPU cores (lower ID has higher priority)
         for (int i = 0; i < `CPU_CORES; i++) begin
           if (l1_req_valid[i]) begin
@@ -92,7 +92,7 @@ module bus (
             next_data  = l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];          // Store the data from L1 controller
             next_cpu   = i;                     // Record the CPU id
             next_state = REQ;                   // Transition to REQ state
-            break;                             // Exit the loop after handling one request
+            disable scan_reqs;                  // Exit the loop after handling one request
           end
         end
       end
