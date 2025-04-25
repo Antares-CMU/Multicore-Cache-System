@@ -6,11 +6,11 @@ module top (
   // CPU interfaces for `CPU_CORES cores
   input  logic [`CPU_CORES-1:0]                  cpu_valid,
   input  logic [`CPU_CORES-1:0]                  cpu_command,     // load: 0; store: 1
-  input  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] cpu_addr,
-  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS - 1:0]          cpu_write_data,
+  input  logic [`ADDR_BITS - `OFFSET_BITS - 1:0] cpu_addr [`CPU_CORES-1:0],
+  input  logic [`CACHELINE_BITS - 1:0]          cpu_write_data [`CPU_CORES-1:0],
   output logic [`CPU_CORES-1:0]                  cpu_ready,
   output logic [`CPU_CORES-1:0]                  cpu_read_valid,
-  output logic [`CPU_CORES-1:0][`CACHELINE_BITS - 1:0] cpu_read_data,
+  output logic [`CACHELINE_BITS - 1:0] cpu_read_data [`CPU_CORES-1:0],
   // Main Memory interface
   output logic                                   mem_req_valid,
   output logic                                   mem_req_rw,      // 0: read; 1: write
@@ -26,9 +26,9 @@ module top (
   // L1 controller interface (outputs from L1 and inputs to bus)
   logic [`CPU_CORES-1:0]                     l1_req_valid;
   logic [`CPU_CORES-1:0]                     l1_req_ready;
-  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr;
+  logic [`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr [`CPU_CORES-1:0];
   bus_req_t [`CPU_CORES-1:0]                 l1_req;
-  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_req_data;
+  logic [`CACHELINE_BITS-1:0] l1_req_data [`CPU_CORES-1:0];
 
   // L1 response signals from bus (driven by bus, consumed by L1)
   logic                                      l1_resp_valid;
@@ -40,7 +40,7 @@ module top (
   logic [`ADDR_BITS - `OFFSET_BITS - 1:0]    l1_snoop_addr;
   bus_req_t                                  l1_snoop_req;
   logic [`CPU_CORES-1:0]                     l1_snoop_shared;
-  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_snoop_data;
+  logic [`CACHELINE_BITS-1:0] l1_snoop_data [`CPU_CORES-1:0];
 
   //-------------------------------------------------------------------------
   // Internal wires for connecting bus and L2 module
