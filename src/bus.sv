@@ -6,9 +6,9 @@ module bus (
   // L1 controller interface (for `CPU_CORES L1 modules)
   input  logic [`CPU_CORES-1:0]                     l1_req_valid,
   output logic [`CPU_CORES-1:0]                     l1_req_ready,
-  input  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr,
+  input  logic [`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr [`CPU_CORES-1:0],
   input  bus_req_t [`CPU_CORES-1:0]                 l1_req,
-  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_req_data,
+  input  logic [`CACHELINE_BITS-1:0] l1_req_data [`CPU_CORES-1:0],
   output logic                        l1_resp_valid,
   output logic [`CACHELINE_BITS-1:0]  l1_resp_data,
   output logic                        l1_resp_shared,
@@ -18,7 +18,7 @@ module bus (
   output logic [`ADDR_BITS - `OFFSET_BITS - 1:0]    l1_snoop_addr,
   output bus_req_t                                  l1_snoop_req,
   input  logic [`CPU_CORES-1:0]                     l1_snoop_shared,
-  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_snoop_data,
+  input  logic [`CACHELINE_BITS-1:0] l1_snoop_data [`CPU_CORES-1:0],
 
   // L2 module interface
   output logic                                    l2_req_valid,
