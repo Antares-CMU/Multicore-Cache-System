@@ -8,7 +8,7 @@ module bus (
   output logic [`CPU_CORES-1:0]                     l1_req_ready,
   input  logic [`CPU_CORES*(`ADDR_BITS - `OFFSET_BITS)-1:0] l1_req_addr,
   input  bus_req_t [`CPU_CORES-1:0]                 l1_req,
-  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0] l1_req_data,
+  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_req_data,
   output logic                        l1_resp_valid,
   output logic [`CACHELINE_BITS-1:0]  l1_resp_data,
   output logic                        l1_resp_shared,
@@ -18,7 +18,7 @@ module bus (
   output logic [`ADDR_BITS - `OFFSET_BITS - 1:0]    l1_snoop_addr,
   output bus_req_t                                  l1_snoop_req,
   input  logic [`CPU_CORES-1:0]                     l1_snoop_shared,
-  input  logic [`CACHELINE_BITS-1:0] l1_snoop_data [`CPU_CORES-1:0],
+  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_snoop_data,
 
   // L2 module interface
   output logic                                    l2_req_valid,
@@ -120,7 +120,7 @@ module bus (
         for (int i = 0; i < `CPU_CORES; i++) begin
           if (l1_snoop_shared[i]) begin
             l1_resp_valid = 1'b1;
-            l1_resp_data  = l1_snoop_data[i];
+            l1_resp_data  = l1_snoop_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];
             next_state    = IDLE;
             break;
           end
@@ -149,9 +149,7 @@ module bus (
         next_state    = IDLE;
       end
 
-      default: begin
-        // Default
-      end
+      default: ;
     endcase
   end
 
@@ -161,9 +159,9 @@ module bus (
   assign l1_snoop_addr  = addr_reg;
   assign l1_snoop_req   = req_reg;
   // L2 request channel
-  assign l2_req_valid = (cur_state == L2_REQ) ? 1'b1 : 1'b0;
+  assign l2_req_valid = (cur_state == L2_REQ);
   assign l2_req_addr  = addr_reg;
-  assign l2_req_rw    = (req_reg == BUS_WB) ? 1'b1 : 1'b0;
+  assign l2_req_rw    = (req_reg == BUS_WB);
   assign l2_req_data  = data_reg;
 
 endmodule : bus
