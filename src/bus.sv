@@ -120,11 +120,11 @@ module bus (
         next_state = L2_REQ;
         // Loop through each L1 core; lower ID has higher priority
         for (int i = 0; i < `CPU_CORES; i++) begin
-          if (l1_snoop_shared[i]) begin
+          if (!got_one && l1_snoop_shared[i]) begin
             l1_resp_valid = 1'b1;
             l1_resp_data  = l1_snoop_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];
             next_state    = IDLE;
-            break;
+            got_one = 1'b1; // Indicate that a shared response has been found
           end
         end
       end
