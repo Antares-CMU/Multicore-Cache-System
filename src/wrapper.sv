@@ -1,3 +1,4 @@
+`include "cache.svh"
 // -----------------------------------------------------------------------------
 // 7-phase serial wrapper (12-bit I/O) for `top`
 // -----------------------------------------------------------------------------
@@ -20,40 +21,40 @@ module wrapper (
     logic top_clk = (phase >= 3'd4);
 
     // ---------------------------------------------------------------------
-    // 2.  Four 12-bit capture registers (48 bits total)
+    // 2.  Four 12-bit capture registers (48 bits total) — flattened
     // ---------------------------------------------------------------------
-    logic [11:0] cap[3:0];                // cap[0]=cycle0 … cap[3]=cycle3
+    logic [47:0] cap;                     // {cap3,cap2,cap1,cap0}
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            cap[0] <= '0; cap[1] <= '0; cap[2] <= '0; cap[3] <= '0;
+            cap[11:0]   <= '0; cap[23:12]  <= '0; cap[35:24]  <= '0; cap[47:36]  <= '0;
         end
         else case (phase)
-            3'd0: cap[0] <= in_bits;   // cpu_valid|cmd|wr_data
-            3'd1: cap[1] <= in_bits;   // addr0, addr1
-            3'd2: cap[2] <= in_bits;   // addr2, addr3
-            3'd3: cap[3] <= in_bits;   // mem_req_ready, mem_resp_* (lsb)
-            default: ;                 // nothing to capture
+            3'd0: cap[11:0]   <= in_bits;   // cpu_valid|cmd|wr_data
+            3'd1: cap[23:12]  <= in_bits;   // addr0, addr1
+            3'd2: cap[35:24]  <= in_bits;   // addr2, addr3
+            3'd3: cap[47:36]  <= in_bits;   // mem_req_ready, mem_resp_* (lsb)
+            default: ;                      // nothing to capture
         endcase
     end
 
     // ---------------------------------------------------------------------
     // 3.  Decode the 39 useful input bits for `top`
     // ---------------------------------------------------------------------
-    // cap[0] = {cpu_valid[3:0], cpu_cmd[3:0], cpu_wr_data[3:0]}
-    logic [3:0] cpu_valid      = cap[0][11:8];
-    logic [3:0] cpu_command    = cap[0][7:4];
-    logic [3:0] cpu_wr_data    = cap[0][3:0];
+    // cap[0] segment = cap[11:0]
+    logic [3:0] cpu_valid      = cap[11:8];
+    logic [3:0] cpu_command    = cap[7:4];
+    logic [3:0] cpu_wr_data    = cap[3:0];
 
-    // cap[1] & cap[2] hold the 24 address bits (addr0…addr3)
-    logic [3:0][5:0] cpu_addr;
-    assign { cpu_addr[1], cpu_addr[0] } = cap[1];   // {addr1,addr0}
-    assign { cpu_addr[3], cpu_addr[2] } = cap[2];   // {addr3,addr2}
+    // cap[1] & cap[2] segments hold the 24 address bits (addr0…addr3)
+    logic [23:0] cpu_addr;
+    assign { cpu_addr[6*1 +: 6], cpu_addr[6*0 +: 6] } = cap[23:12];   // {addr1,addr0}
+    assign { cpu_addr[6*3 +: 6], cpu_addr[6*2 +: 6] } = cap[35:24];   // {addr3,addr2}
 
     // cap[3] lsb = memory handshake
-    logic mem_req_ready  = cap[3][2];
-    logic mem_resp_valid = cap[3][1];
-    logic mem_resp_data  = cap[3][0];
+    logic mem_req_ready  = cap[38];
+    logic mem_resp_valid = cap[37];
+    logic mem_resp_data  = cap[36];
 
     // ---------------------------------------------------------------------
     // 4.  Outputs from `top` (21 bits) → 24-bit shift register
