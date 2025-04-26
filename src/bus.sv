@@ -47,6 +47,7 @@ module bus (
   logic [`ADDR_BITS - `OFFSET_BITS - 1:0] addr_reg, next_addr;
   logic [`CACHELINE_BITS - 1:0]           data_reg, next_data;
   logic [1:0] cpu_reg, next_cpu;       // CPU ID for L1 request
+  logic got_one; // Flag to indicate if a request has been found
 
   // Sequential block: update state and registers on clock edge or reset
   always_ff @(posedge clk or negedge reset_n) begin
@@ -79,20 +80,21 @@ module bus (
     l1_resp_valid = 1'b0;
     l1_resp_data  = '0;
     l1_snoop_valid = '0;
+    got_one = 1'b0;
 
     // FSM state case analysis
     case(cur_state)
-      IDLE: begin : scan_reqs
+      IDLE: begin
         // Loop over all CPU cores (lower ID has higher priority)
         for (int i = 0; i < `CPU_CORES; i++) begin
-          if (l1_req_valid[i]) begin
+          if (!got_one && l1_req_valid[i]) begin
             l1_req_ready[i] = 1'b1;             // Assert ready for the selected CPU
             next_req   = l1_req[i];             // Store the bus request from L1 controller
-            next_addr  = l1_req_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)];          // Store the address from L1 controller
-            next_data  = l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];          // Store the data from L1 controller
+            next_addr  = l1_req_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)];  // Store the address from L1 controller
+            next_data  = l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];   // Store the data from L1 controller
             next_cpu   = i;                     // Record the CPU id
             next_state = REQ;                   // Transition to REQ state
-            disable scan_reqs;                  // Exit the loop after handling one request
+            got_one    = 1'b1;                 // Indicate that a request has been found
           end
         end
       end
