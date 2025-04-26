@@ -1,6 +1,8 @@
 `include "cache.svh"
 // -----------------------------------------------------------------------------
-// 7-phase serial wrapper (12-bit I/O) for `top`
+// 6‑phase serial wrapper (12‑bit I/O) for top module
+// Phases: 0 1 2 3 4 5
+// top_clk: high 4‑5‑0, low 1‑2‑3
 // -----------------------------------------------------------------------------
 module wrapper (
     input  logic        clk,        // fast system clock
@@ -10,36 +12,35 @@ module wrapper (
 );
 
     // ---------------------------------------------------------------------
-    // 1.  ÷7 clock generator for the DUT
+    // 1.  ÷6 clock generator for the DUT
     // ---------------------------------------------------------------------
-    logic [2:0] phase;                    // 0--6
+    logic [2:0] phase;                    // 0‑5
+
     always_ff @(posedge clk or negedge reset_n)
         if (!reset_n) phase <= 3'd0;
-        else          phase <= (phase == 3'd6) ? 3'd0 : phase + 3'd1;
+        else          phase <= (phase == 3'd5) ? 3'd0 : phase + 3'd1;
 
-    // low  : 0-3 (input)   high : 4-6 (run+output)
-    logic top_clk = (phase >= 3'd4);
+    // low  : 1‑2‑3   high : 4‑5‑0
+    logic top_clk = (phase == 3'd4) || (phase == 3'd5) || (phase == 3'd0);
 
     // ---------------------------------------------------------------------
-    // 2.  Four 12-bit capture registers (48 bits total) — flattened
+    // 2.  Three 12‑bit capture registers (36 bits total) — flattened
+    //     Segments cap0/1/2 correspond to phases 0/1/2
     // ---------------------------------------------------------------------
-    logic [47:0] cap;                     // {cap3,cap2,cap1,cap0}
+    logic [35:0] cap;                     // {cap2,cap1,cap0}
 
     always_ff @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            cap[11:0]   <= '0; cap[23:12]  <= '0; cap[35:24]  <= '0; cap[47:36]  <= '0;
-        end
+        if (!reset_n) cap <= '0;
         else case (phase)
-            3'd0: cap[11:0]   <= in_bits;   // cpu_valid|cmd|wr_data
-            3'd1: cap[23:12]  <= in_bits;   // addr0, addr1
-            3'd2: cap[35:24]  <= in_bits;   // addr2, addr3
-            3'd3: cap[47:36]  <= in_bits;   // mem_req_ready, mem_resp_* (lsb)
-            default: ;                      // nothing to capture
+            3'd0: cap[11:0]  <= in_bits;   // cpu_valid|cmd|wr_data
+            3'd1: cap[23:12] <= in_bits;   // addr0, addr1
+            3'd2: cap[35:24] <= in_bits;   // addr2, addr3
+            default: ;                     // phase 3 is direct‑wired
         endcase
     end
 
     // ---------------------------------------------------------------------
-    // 3.  Decode the 39 useful input bits for `top`
+    // 3.  Decode the 30 useful input bits for `top`
     // ---------------------------------------------------------------------
     // cap[0] segment = cap[11:0]
     logic [3:0] cpu_valid      = cap[11:8];
@@ -51,23 +52,22 @@ module wrapper (
     assign { cpu_addr[6*1 +: 6], cpu_addr[6*0 +: 6] } = cap[23:12];   // {addr1,addr0}
     assign { cpu_addr[6*3 +: 6], cpu_addr[6*2 +: 6] } = cap[35:24];   // {addr3,addr2}
 
-    // cap[3] lsb = memory handshake
-    logic mem_req_ready  = cap[38];
-    logic mem_resp_valid = cap[37];
-    logic mem_resp_data  = cap[36];
+    // phase‑3 handshake comes in directly (only 3 LSBs used)
+    logic mem_req_ready  = in_bits[2];
+    logic mem_resp_valid = in_bits[1];
+    logic mem_resp_data  = in_bits[0];
 
     // ---------------------------------------------------------------------
-    // 4.  Outputs from `top` (21 bits) → 24-bit shift register
+    // 4.  Outputs from `top` (21 bits) → 24‑bit parallel word
     // ---------------------------------------------------------------------
-    logic [23:0] out_shift;
-
     // wires from top
     logic [3:0] cpu_ready, cpu_read_valid, cpu_read_data;
     logic       mem_req_valid, mem_req_rw, mem_req_data;
     logic [5:0] mem_req_addr;
 
-    // pack with 3 pad zeros (MSBs) so we have exactly 24 bits
-    logic [23:0] par_out = {
+    // pad with 3 zeros (MSBs) for 24 bits total
+    logic [23:0] par_out;
+    assign par_out = {
         3'b000,                 // padding
         cpu_ready,              // 20:17
         cpu_read_valid,         // 16:13
@@ -78,22 +78,10 @@ module wrapper (
         mem_req_data            // 0
     };
 
-    // latch straight after the rising edge (phase 4)
-    always_ff @(posedge clk or negedge reset_n)
-        if (!reset_n) out_shift <= '0;
-        else if (phase == 3'd4) out_shift <= par_out;
-
     // ---------------------------------------------------------------------
-    // 5.  Drive the 12-bit serial output during phases 5 and 6
+    // 5.  Drive the 12‑bit serial output during phases 4 and 5 (no extra regs)
     // ---------------------------------------------------------------------
-    always_ff @(posedge clk or negedge reset_n) begin
-        if (!reset_n) out_bits <= 12'h000;
-        else case (phase)
-            3'd5: out_bits <= out_shift[11:0];        // lower half
-            3'd6: out_bits <= out_shift[23:12];       // upper half
-            default: out_bits <= 12'h000;             // idle / tri-state
-        endcase
-    end
+    assign out_bits = (phase == 3'd4)? par_out[11:0] : par_out[23:12];   // lower half/upper half
 
     // ---------------------------------------------------------------------
     // 6.  Instantiate the DUT
