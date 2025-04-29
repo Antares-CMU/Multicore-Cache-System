@@ -1,19 +1,9 @@
 --- 
 project:
   source_files:
-    - cache.svh
     - toplevel_chip.v
     - chip.sv
-    - bus.sv
-    - L1.sv
-    - L1cache.sv
-    - L1controller.sv
-    - L1snooper.sv
-    - L2.sv
-    - L2cache.sv
-    - L2controller.sv
-    - top.sv
-    - wrapper.sv
+    - output.v
   top_module:  "toplevel_chip"
 
 # As everyone will have access to all designs, try to make it easy for someone new to your design to know what
