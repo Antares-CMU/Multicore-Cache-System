@@ -7,7 +7,7 @@ module my_chip (
     input logic reset // Important: Reset is ACTIVE-HIGH
 );
     
-    wrapper u_wrapper (
+    wrapper wrapper_inst (
         .clk      (clock),
         .reset_n  (~reset),   // convert active-HIGH to active-LOW
         .in_bits  (io_in),

@@ -102,6 +102,6 @@ module L1snooper (
   end
 
   assign cache_addr = addr;
-  assign shared = (cur_state == RESPOND) ? 1 : 0;
+  assign shared = (cur_state == RESPOND);
 
 endmodule : L1snooper

@@ -55,7 +55,6 @@ module bus (
 	reg [0:0] next_data;
 	reg [1:0] cpu_reg;
 	reg [1:0] next_cpu;
-	reg got_one;
 	always @(posedge clk or negedge reset_n)
 		if (!reset_n) begin
 			cur_state <= 3'd0;
@@ -71,7 +70,9 @@ module bus (
 			data_reg <= next_data;
 			cpu_reg <= next_cpu;
 		end
-	always @(*) begin
+	always @(*) begin : sv2v_autoblock_1
+		reg [0:1] _sv2v_jump;
+		_sv2v_jump = 2'b00;
 		if (_sv2v_0)
 			;
 		next_state = cur_state;
@@ -83,23 +84,33 @@ module bus (
 		l1_resp_valid = 1'b0;
 		l1_resp_data = 1'sb0;
 		l1_snoop_valid = 1'sb0;
-		got_one = 1'b0;
 		case (cur_state)
-			3'd0: begin : sv2v_autoblock_1
+			3'd0: begin : sv2v_autoblock_2
 				reg signed [31:0] i;
-				for (i = 0; i < 4; i = i + 1)
-					if (!got_one && l1_req_valid[i]) begin
-						l1_req_ready[i] = 1'b1;
-						next_req = l1_req[i * 2+:2];
-						next_addr = l1_req_addr[i * 6+:6];
-						next_data = l1_req_data[i * 1+:1];
-						next_cpu = i;
-						next_state = 3'd1;
-						got_one = 1'b1;
-					end
+				begin : sv2v_autoblock_3
+					reg signed [31:0] _sv2v_value_on_break;
+					for (i = 0; i < 4; i = i + 1)
+						if (_sv2v_jump < 2'b10) begin
+							_sv2v_jump = 2'b00;
+							if (l1_req_valid[i]) begin
+								l1_req_ready[i] = 1'b1;
+								next_req = l1_req[i * 2+:2];
+								next_addr = l1_req_addr[i * 6+:6];
+								next_data = l1_req_data[i+:1];
+								next_cpu = i;
+								next_state = 3'd1;
+								_sv2v_jump = 2'b10;
+							end
+							_sv2v_value_on_break = i;
+						end
+					if (!(_sv2v_jump < 2'b10))
+						i = _sv2v_value_on_break;
+					if (_sv2v_jump != 2'b11)
+						_sv2v_jump = 2'b00;
+				end
 			end
 			3'd1: begin
-				begin : sv2v_autoblock_2
+				begin : sv2v_autoblock_4
 					reg signed [31:0] i;
 					for (i = 0; i < 4; i = i + 1)
 						if (i != cpu_reg)
@@ -114,15 +125,26 @@ module bus (
 			end
 			3'd2: begin
 				next_state = 3'd3;
-				begin : sv2v_autoblock_3
+				begin : sv2v_autoblock_5
 					reg signed [31:0] i;
-					for (i = 0; i < 4; i = i + 1)
-						if (!got_one && l1_snoop_shared[i]) begin
-							l1_resp_valid = 1'b1;
-							l1_resp_data = l1_snoop_data[i * 1+:1];
-							next_state = 3'd0;
-							got_one = 1'b1;
-						end
+					begin : sv2v_autoblock_6
+						reg signed [31:0] _sv2v_value_on_break;
+						for (i = 0; i < 4; i = i + 1)
+							if (_sv2v_jump < 2'b10) begin
+								_sv2v_jump = 2'b00;
+								if (l1_snoop_shared[i]) begin
+									l1_resp_valid = 1'b1;
+									l1_resp_data = l1_snoop_data[i+:1];
+									next_state = 3'd0;
+									_sv2v_jump = 2'b10;
+								end
+								_sv2v_value_on_break = i;
+							end
+						if (!(_sv2v_jump < 2'b10))
+							i = _sv2v_value_on_break;
+						if (_sv2v_jump != 2'b11)
+							_sv2v_jump = 2'b00;
+					end
 				end
 			end
 			3'd3:
@@ -565,7 +587,7 @@ module L1snooper (
 			next_state = 1'd0;
 	end
 	assign cache_addr = addr;
-	assign shared = (cur_state == 1'd1 ? 1 : 0);
+	assign shared = cur_state == 1'd1;
 	initial _sv2v_0 = 0;
 endmodule
 module L2 (
@@ -817,7 +839,7 @@ module L2controller (
 	assign l2_resp_valid = cur_state == 3'd4;
 	assign l2_resp_data = data_reg;
 	assign mem_req_valid = (cur_state == 3'd2) || (cur_state == 3'd1);
-	assign mem_req_rw = (cur_state == 3'd1 ? 1'b1 : 1'b0);
+	assign mem_req_rw = cur_state == 3'd1;
 	assign mem_req_addr = (cur_state == 3'd1 ? {cacheline_lookup[2-:2], addr_reg[3:0]} : addr_reg);
 	assign mem_req_data = (cur_state == 3'd1 ? cacheline_lookup[0] : data_reg);
 	initial _sv2v_0 = 0;
@@ -886,15 +908,15 @@ module top (
 				.cpu_valid(cpu_valid[i]),
 				.cpu_command(cpu_command[i]),
 				.cpu_addr(cpu_addr[i * 6+:6]),
-				.cpu_write_data(cpu_write_data[i * 1+:1]),
+				.cpu_write_data(cpu_write_data[i+:1]),
 				.cpu_ready(cpu_ready[i]),
 				.cpu_read_valid(cpu_read_valid[i]),
-				.cpu_read_data(cpu_read_data[i * 1+:1]),
+				.cpu_read_data(cpu_read_data[i+:1]),
 				.bus_req_valid(l1_req_valid[i]),
 				.bus_req_ready(l1_req_ready[i]),
 				.bus_req_addr(l1_req_addr[i * 6+:6]),
 				.bus_req(l1_req[i * 2+:2]),
-				.bus_req_data(l1_req_data[i * 1+:1]),
+				.bus_req_data(l1_req_data[i+:1]),
 				.bus_resp_valid(l1_resp_valid),
 				.bus_resp_data(l1_resp_data),
 				.bus_resp_shared(l1_resp_shared),
@@ -902,7 +924,7 @@ module top (
 				.snoop_addr(l1_snoop_addr),
 				.snoop_req(l1_snoop_req),
 				.snoop_shared(l1_snoop_shared[i]),
-				.snoop_data(l1_snoop_data[i * 1+:1])
+				.snoop_data(l1_snoop_data[i+:1])
 			);
 		end
 	endgenerate
@@ -997,7 +1019,7 @@ module wrapper (
 	wire [23:0] par_out;
 	assign par_out = {3'b000, cpu_ready, cpu_read_valid, cpu_read_data, mem_req_valid, mem_req_rw, mem_req_addr, mem_req_data};
 	assign out_bits = (phase == 3'd4 ? par_out[11:0] : par_out[23:12]);
-	top dut(
+	top top_inst(
 		.clk(top_clk),
 		.reset_n(reset_n),
 		.cpu_valid(cpu_valid),

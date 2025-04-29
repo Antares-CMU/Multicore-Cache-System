@@ -165,7 +165,7 @@ module L2controller (
   assign l2_resp_valid = (cur_state == RESPOND);
   assign l2_resp_data = data_reg;
   assign mem_req_valid = (cur_state == MM_REQ) || (cur_state == EVICTION);
-  assign mem_req_rw = (cur_state == EVICTION) ? 1'b1 : 1'b0;
+  assign mem_req_rw = (cur_state == EVICTION);
   assign mem_req_addr = (cur_state == EVICTION) ? {cacheline_lookup.tag, addr_reg[`L2_INDEX_BITS-1:0]} : addr_reg;
   assign mem_req_data = (cur_state == EVICTION) ? cacheline_lookup.cacheline : data_reg;
 

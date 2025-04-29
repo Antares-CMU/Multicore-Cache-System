@@ -1,5 +1,5 @@
 `include "cache.svh"
-// The module to simulate the L2 cache memory
+// The module to emulate the L2 cache memory
 module L2cache (
   input  logic [`ADDR_BITS - `OFFSET_BITS - 1:0] addr,
   input  logic                                   clk,

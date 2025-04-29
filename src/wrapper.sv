@@ -84,9 +84,9 @@ module wrapper (
     assign out_bits = (phase == 3'd4)? par_out[11:0] : par_out[23:12];   // lower half/upper half
 
     // ---------------------------------------------------------------------
-    // 6.  Instantiate the DUT
+    // 6.  Instantiate the design
     // ---------------------------------------------------------------------
-    top dut (
+    top top_inst (
         .clk             (top_clk),
         .reset_n         (reset_n),
 

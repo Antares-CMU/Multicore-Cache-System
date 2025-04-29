@@ -6,15 +6,15 @@ module top (
   // CPU interfaces for `CPU_CORES cores
   input  logic [`CPU_CORES-1:0]                  cpu_valid,
   input  logic [`CPU_CORES-1:0]                  cpu_command,     // load: 0; store: 1
-  input  logic [`CPU_CORES*(`ADDR_BITS - `OFFSET_BITS)-1:0] cpu_addr,
-  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0]  cpu_write_data,
+  input  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] cpu_addr,
+  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS - 1:0]          cpu_write_data,
   output logic [`CPU_CORES-1:0]                  cpu_ready,
   output logic [`CPU_CORES-1:0]                  cpu_read_valid,
-  output logic [`CPU_CORES*`CACHELINE_BITS-1:0]  cpu_read_data,
+  output logic [`CPU_CORES-1:0][`CACHELINE_BITS - 1:0] cpu_read_data,
   // Main Memory interface
   output logic                                   mem_req_valid,
   output logic                                   mem_req_rw,      // 0: read; 1: write
-  output logic [`ADDR_BITS - `OFFSET_BITS - 1:0] mem_req_addr,
+  output logic [`ADDR_BITS - `OFFSET_BITS - 1:0]  mem_req_addr,
   output logic [`CACHELINE_BITS - 1:0]           mem_req_data,
   input  logic                                   mem_req_ready,
   input  logic                                   mem_resp_valid,
@@ -26,9 +26,9 @@ module top (
   // L1 controller interface (outputs from L1 and inputs to bus)
   logic [`CPU_CORES-1:0]                     l1_req_valid;
   logic [`CPU_CORES-1:0]                     l1_req_ready;
-  logic [`CPU_CORES*(`ADDR_BITS - `OFFSET_BITS)-1:0] l1_req_addr;
+  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr;
   bus_req_t [`CPU_CORES-1:0]                 l1_req;
-  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_req_data;
+  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_req_data;
 
   // L1 response signals from bus (driven by bus, consumed by L1)
   logic                                      l1_resp_valid;
@@ -40,7 +40,7 @@ module top (
   logic [`ADDR_BITS - `OFFSET_BITS - 1:0]    l1_snoop_addr;
   bus_req_t                                  l1_snoop_req;
   logic [`CPU_CORES-1:0]                     l1_snoop_shared;
-  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_snoop_data;
+  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_snoop_data;
 
   //-------------------------------------------------------------------------
   // Internal wires for connecting bus and L2 module
@@ -63,17 +63,17 @@ module top (
         // CPU interface
         .cpu_valid       (cpu_valid[i]),
         .cpu_command     (cpu_command[i]),
-        .cpu_addr        (cpu_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)]),
-        .cpu_write_data  (cpu_write_data[i*`CACHELINE_BITS +: `CACHELINE_BITS]),
+        .cpu_addr        (cpu_addr[i]),
+        .cpu_write_data  (cpu_write_data[i]),
         .cpu_ready       (cpu_ready[i]),
         .cpu_read_valid  (cpu_read_valid[i]),
-        .cpu_read_data   (cpu_read_data[i*`CACHELINE_BITS +: `CACHELINE_BITS]),
+        .cpu_read_data   (cpu_read_data[i]),
         // Bus interface for controller
         .bus_req_valid   (l1_req_valid[i]),
         .bus_req_ready   (l1_req_ready[i]),
-        .bus_req_addr    (l1_req_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)]),
+        .bus_req_addr    (l1_req_addr[i]),
         .bus_req         (l1_req[i]),
-        .bus_req_data    (l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS]),
+        .bus_req_data    (l1_req_data[i]),
         .bus_resp_valid  (l1_resp_valid),
         .bus_resp_data   (l1_resp_data),
         .bus_resp_shared (l1_resp_shared),
@@ -82,7 +82,7 @@ module top (
         .snoop_addr      (l1_snoop_addr),
         .snoop_req       (l1_snoop_req),
         .snoop_shared    (l1_snoop_shared[i]),
-        .snoop_data      (l1_snoop_data[i*`CACHELINE_BITS +: `CACHELINE_BITS])
+        .snoop_data      (l1_snoop_data[i])
       );
     end
   endgenerate

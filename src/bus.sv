@@ -6,9 +6,9 @@ module bus (
   // L1 controller interface (for `CPU_CORES L1 modules)
   input  logic [`CPU_CORES-1:0]                     l1_req_valid,
   output logic [`CPU_CORES-1:0]                     l1_req_ready,
-  input  logic [`CPU_CORES*(`ADDR_BITS - `OFFSET_BITS)-1:0] l1_req_addr,
+  input  logic [`CPU_CORES-1:0][`ADDR_BITS - `OFFSET_BITS - 1:0] l1_req_addr,
   input  bus_req_t [`CPU_CORES-1:0]                 l1_req,
-  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_req_data,
+  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_req_data,
   output logic                        l1_resp_valid,
   output logic [`CACHELINE_BITS-1:0]  l1_resp_data,
   output logic                        l1_resp_shared,
@@ -18,7 +18,7 @@ module bus (
   output logic [`ADDR_BITS - `OFFSET_BITS - 1:0]    l1_snoop_addr,
   output bus_req_t                                  l1_snoop_req,
   input  logic [`CPU_CORES-1:0]                     l1_snoop_shared,
-  input  logic [`CPU_CORES*`CACHELINE_BITS-1:0]     l1_snoop_data,
+  input  logic [`CPU_CORES-1:0][`CACHELINE_BITS-1:0] l1_snoop_data,
 
   // L2 module interface
   output logic                                    l2_req_valid,
@@ -47,7 +47,6 @@ module bus (
   logic [`ADDR_BITS - `OFFSET_BITS - 1:0] addr_reg, next_addr;
   logic [`CACHELINE_BITS - 1:0]           data_reg, next_data;
   logic [1:0] cpu_reg, next_cpu;       // CPU ID for L1 request
-  logic got_one; // Flag to indicate if a request has been found
 
   // Sequential block: update state and registers on clock edge or reset
   always_ff @(posedge clk or negedge reset_n) begin
@@ -80,21 +79,20 @@ module bus (
     l1_resp_valid = 1'b0;
     l1_resp_data  = '0;
     l1_snoop_valid = '0;
-    got_one = 1'b0;
 
     // FSM state case analysis
     case(cur_state)
       IDLE: begin
         // Loop over all CPU cores (lower ID has higher priority)
         for (int i = 0; i < `CPU_CORES; i++) begin
-          if (!got_one && l1_req_valid[i]) begin
+          if (l1_req_valid[i]) begin
             l1_req_ready[i] = 1'b1;             // Assert ready for the selected CPU
             next_req   = l1_req[i];             // Store the bus request from L1 controller
-            next_addr  = l1_req_addr[i*(`ADDR_BITS - `OFFSET_BITS) +: (`ADDR_BITS - `OFFSET_BITS)];  // Store the address from L1 controller
-            next_data  = l1_req_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];   // Store the data from L1 controller
+            next_addr  = l1_req_addr[i];          // Store the address from L1 controller
+            next_data  = l1_req_data[i];          // Store the data from L1 controller
             next_cpu   = i;                     // Record the CPU id
             next_state = REQ;                   // Transition to REQ state
-            got_one    = 1'b1;                 // Indicate that a request has been found
+            break;                             // Exit the loop after handling one request
           end
         end
       end
@@ -120,11 +118,11 @@ module bus (
         next_state = L2_REQ;
         // Loop through each L1 core; lower ID has higher priority
         for (int i = 0; i < `CPU_CORES; i++) begin
-          if (!got_one && l1_snoop_shared[i]) begin
+          if (l1_snoop_shared[i]) begin
             l1_resp_valid = 1'b1;
-            l1_resp_data  = l1_snoop_data[i*`CACHELINE_BITS +: `CACHELINE_BITS];
+            l1_resp_data  = l1_snoop_data[i];
             next_state    = IDLE;
-            got_one = 1'b1; // Indicate that a shared response has been found
+            break;
           end
         end
       end
@@ -151,7 +149,9 @@ module bus (
         next_state    = IDLE;
       end
 
-      default: ;
+      default: begin
+        // Default
+      end
     endcase
   end
 
