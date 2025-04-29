@@ -1,7 +1,6 @@
 --- 
 project:
   source_files:
-    - cache.svh
     - toplevel_chip.v
     - chip.sv
     - bus.sv

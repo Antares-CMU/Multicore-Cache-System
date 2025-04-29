@@ -1,4 +1,3 @@
-`include "cache.svh"
 // -----------------------------------------------------------------------------
 // 6‑phase serial wrapper (12‑bit I/O) for top module
 // Phases: 0 1 2 3 4 5
